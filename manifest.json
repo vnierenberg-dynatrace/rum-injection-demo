@@ -1,7 +1,8 @@
 {
     "manifest_version": 2,
-    "name": "Dynamic Script Injector",
-    "version": "1.0",
+    "name": "Dynatrace RUM Injector",
+    "description": "Simulate Dynatrace RUM JS Tag Injection",
+    "version": "0.1",
     "permissions": [
         "tabs",
         "storage",
@@ -13,6 +14,11 @@
         ],
         "persistent": false
     },
+    "icons": {
+        "16": "icon-16.png",
+        "48": "icon-48.png",
+        "128": "icon-128.png"
+    },
     "content_scripts": [
         {
             "matches": [
@@ -23,5 +29,13 @@
             ]
         }
     ],
-    "options_page": "options.html"
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "browser_action": {
+        "default_icon": "icon-128.png",
+        "default_popup": "options.html"
+    }
+    
 }

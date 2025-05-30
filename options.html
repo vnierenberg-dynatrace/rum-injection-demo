@@ -2,42 +2,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Extension Options</title>
-    <!-- <meta http-equiv="Content-Security-Policy" content="default-src *; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'"> -->
+    <title>Dynatrace RUM Injector - Options</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { min-width: 400px; max-width: 600px; margin: 0 auto; padding: 10px; }
         label { display: block; margin-bottom: 8px; }
-        input[type="text"] { width: 100%; padding: 8px; margin-bottom: 20px; }
-        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #45a049; }
+        input[type="text"] { width: 80%; padding: 8px; margin-bottom: 20px; }
+        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 3em; }
+        button:hover { background-color: #2a43d1; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Extension Options</h1>
+        <h1>Dynatrace RUM Injector</h1>
         <label for="targetUrl">Target URL Pattern:</label>
         <input type="text" id="targetUrl" name="targetUrl" placeholder="https://example.com/*">
-        <label for="scriptUrl">Script URL:</label>
+        <label for="scriptUrl">RUM JS Tag URL:</label>
         <input type="text" id="scriptUrl" name="scriptUrl" placeholder="https://example.com/script.js">
         <button id="save">Save</button>
     </div>  
     <script src="options.js"></script>
-    <!-- <script nonce="ABCD4321"> 
-        document.addEventListener('DOMContentLoaded', function() {
-            chrome.storage.sync.get(['targetUrl', 'scriptUrl'], function(data) {
-                document.getElementById('targetUrl').value = data.targetUrl;
-                document.getElementById('scriptUrl').value = data.scriptUrl;
-            });
-
-            document.getElementById('save').addEventListener('click', function() {
-                var targetUrl = document.getElementById('targetUrl').value;
-                var scriptUrl = document.getElementById('scriptUrl').value;
-                chrome.storage.sync.set({targetUrl: targetUrl, scriptUrl: scriptUrl}, function() {
-                    console.log('Settings saved');
-                });
-            });
-        });
-    </script> -->
 </body>
 </html>
