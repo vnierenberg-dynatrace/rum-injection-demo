@@ -1,0 +1,27 @@
+{
+    "manifest_version": 2,
+    "name": "Dynamic Script Injector",
+    "version": "1.0",
+    "permissions": [
+        "tabs",
+        "storage",
+        "<all_urls>"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ],
+        "persistent": false
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "options_page": "options.html"
+}
