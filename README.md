@@ -15,6 +15,26 @@
 6. Nagivated to the unzipped directory from step #2 and click `Select`
 ![install unpacked extension](docs/imgs/install-unpacked-extension.gif)
 
+
+## Setting Up Web Application in Dynatrace
+
+1. Navigate to the hub and search for "Web application monitoring via manual insertion" and click “Set up”  
+![alt text](docs/imgs/hub-add-webapp.png)
+
+2. Type in the domain of the website you want to monitor and click "add web application"  
+![alt text](docs/imgs/add-real-user-monitoring-website.png)
+
+3. Copy the src url, you’ll enter this into the extension   
+![alt text](docs/imgs/add-real-user-monitoring-copy-js-tag.png)
+
+4. Click `View Application` this brings you to the application screen  
+
+5. Check the 3 dots and select edit  
+![alt text](docs/imgs/web-application-access-settings.png)
+
+6. Under General Settings, navigate to "enablement and cost control", toggle on "Enable New Real User Monitoring Experience" and "Enable Session Replay Classic" and click "Save Changes"  
+![alt text](docs/imgs/enable-new-experience-and-replay.png)
+
 ## Configure Extension for Demo
 
 1. Navigate to `Web Application Injection Setup` settings page in Dynatrace, and copy the src value from the javaScript tag snippet
@@ -54,3 +74,7 @@ Since we are injecting our RUM locally via an extension, you may see these warni
 ![Validate Overrides Are Functioning](docs/imgs/validate-csp-overrides-and-functionality.gif)
 
 > ⚠️ **Warning these overrides only function while the DevTool window is open.  Be sure to leave the DevTool open for the entire time you are running your demo** ⚠️
+
+> Normally, **RUM** sessions end on of the ways documented here: [https://docs.dynatrace.com/docs/shortlink/user-session#user-session-end]()
+>
+> However, we want to be able to create a bunch of sessions quickly without having to close the browser or wait for inactivity. To do this, navigate to the console in Chrome Dev Tools and type `dtrum.endSession()` and hit enter 
