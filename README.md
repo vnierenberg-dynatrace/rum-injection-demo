@@ -2,19 +2,23 @@
 
 ## Download and Install Extension
 
-1. Open Chrome and navigate to https://github.com/45413/wwse-enablement-rum-injection-demo, click the `Code` button, then `Download ZIP`
-![download plugin](docs/imgs/download-plugin.png)
+1. Open Chrome and navigate to [https://github.com/dynatrace-wwse/rum-injection-demo](https://github.com/dynatrace-wwse/rum-injection-demo), click the `Code` button, then `Download ZIP`
 
-2. Open your download folder and unzip `wwse-enablement-rum-injection-demo-main.zip`
+![download plugin](docs/imgs/download_repo_zip.png)
+
+2. Open your download folder and unzip `rum-injection-demo-main.zip`
+
 ![unzipped plugin](docs/imgs/unzipped-plugin.png)
 
 3. In Chrome, select `menu "𐄛"  > Extensions > Manage Extensions`
 
-4. Enabled Developer Mode in the top right.
-5. Click `Load Unpacked`
-6. Nagivated to the unzipped directory from step #2 and click `Select`
-![install unpacked extension](docs/imgs/install-unpacked-extension.gif)
+4. Enable Developer Mode in the top right
 
+5. Click `Load Unpacked`
+
+6. Nagivated to the unzipped directory from step #2 and click `Select`
+
+![install unpacked extension](docs/imgs/install-unpacked-extension.gif)
 
 ## Setting Up Web Application in Dynatrace
 
