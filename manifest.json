@@ -1,41 +1,29 @@
 {
-    "manifest_version": 2,
-    "name": "Dynatrace RUM Injector",
-    "description": "Simulate Dynatrace RUM JS Tag Injection",
-    "version": "0.1",
-    "permissions": [
-        "tabs",
-        "storage",
-        "<all_urls>"
-    ],
-    "background": {
-        "scripts": [
-            "background.js"
-        ],
-        "persistent": false
-    },
-    "icons": {
-        "16": "images/icon-16.png",
-        "48": "images/icon-48.png",
-        "128": "images/icon-128.png"
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "content.js"
-            ]
-        }
-    ],
-    "options_ui": {
-        "page": "options.html",
-        "open_in_tab": true
-    },
-    "browser_action": {
-        "default_icon": "images/icon-128.png",
-        "default_popup": "options.html"
+  "manifest_version": 3,
+  "name": "Dynatrace RUM Injector Plugin - Chrome Manifest V3",
+  "version": "1.0",
+  "permissions": ["scripting", "activeTab", "tabs", "declarativeNetRequest", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
-    
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "icons": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+  }
 }
