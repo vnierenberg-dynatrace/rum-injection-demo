@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynatrace RUM Injector Plugin</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 380px;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 400px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 2px;
+      }
+
+      .header p {
+        font-size: 11px;
+        color: #718096;
+      }
+
+      .info-icon {
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background: #667eea;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .info-icon:hover {
+        background: #5a67d8;
+        transform: scale(1.1);
+      }
+
+      .info-tooltip {
+        position: absolute;
+        top: 25px;
+        right: 0;
+        background: #2d3748;
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        line-height: 1.4;
+        width: 280px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+      }
+
+      .info-tooltip.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .info-tooltip::before {
+        content: '';
+        position: absolute;
+        top: -6px;
+        right: 8px;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 6px solid #2d3748;
+      }
+
+      .section {
+        margin-bottom: 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #667eea;
+        transition: all 0.2s ease;
+        overflow: hidden;
+      }
+
+      .section:hover {
+        background: #f1f3f4;
+      }
+
+      .section-header {
+        padding: 10px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+
+      .section-header:hover {
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+
+
+      .section-chevron {
+        font-size: 12px;
+        color: #718096;
+        transition: transform 0.2s ease;
+      }
+
+      .section.collapsed .section-chevron {
+        transform: rotate(-90deg);
+      }
+
+      .section-content {
+        padding: 0 12px 12px 12px;
+        transition: all 0.2s ease;
+        max-height: 500px;
+        opacity: 1;
+      }
+
+      .section.collapsed .section-content {
+        max-height: 0;
+        opacity: 0;
+        padding: 0 12px;
+        overflow: hidden;
+      }
+
+      .toggle-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        background: #cbd5e0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .toggle.active {
+        background: #667eea;
+      }
+
+      .toggle::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .toggle.active::before {
+        transform: translateX(20px);
+      }
+
+      .toggle-label {
+        font-weight: 500;
+        color: #4a5568;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        transition: border-color 0.2s ease;
+        background: white;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+      }
+
+      input[type="text"]::placeholder {
+        color: #a0aec0;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex: 1;
+        min-width: max-content;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-secondary {
+        background: #f7fafc;
+        color: #4a5568;
+        border: 1px solid #e2e8f0;
+      }
+
+      .btn-secondary:hover {
+        background: #edf2f7;
+        border-color: #cbd5e0;
+      }
+
+      .btn-danger {
+        background: #fed7d7;
+        color: #c53030;
+        border: 1px solid #feb2b2;
+      }
+
+      .btn-danger:hover {
+        background: #fecaca;
+        border-color: #f87171;
+      }
+
+      .rules-container {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .rule-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      .rule-pattern {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .rule-url {
+        font-size: 11px;
+        color: #718096;
+        word-break: break-all;
+        margin-bottom: 8px;
+      }
+
+      .rule-remove {
+        background: #fed7d7;
+        color: #c53030;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .empty-state {
+        text-align: center;
+        color: #a0aec0;
+        font-style: italic;
+        padding: 20px;
+      }
+
+      .status {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        transform: translateY(100px);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+      }
+
+      .status.show {
+        transform: translateY(0);
+      }
+
+      .status.success {
+        background: #c6f6d5;
+        color: #22543d;
+        border: 1px solid #9ae6b4;
+      }
+
+      .status.error {
+        background: #fed7d7;
+        color: #c53030;
+        border: 1px solid #feb2b2;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Scrollbar styling */
+      .rules-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .rules-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+
+      .rules-container::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 3px;
+      }
+
+      .rules-container::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="info-icon" id="infoIcon">i</div>
+        <div class="info-tooltip" id="infoTooltip">
+          <strong>How it works:</strong><br>
+          1. Create rules by specifying URL patterns (regex) and a script URL<br>
+          2. CSP headers are automatically blocked when enabled<br>
+          3. Scripts auto-inject on page refresh/navigation when URLs match<br>
+          4. Use "Current Domain" for easy pattern creation<br>
+          5. Refresh any page to start injection with saved rules
+        </div>
+        <h1>Dynatrace RUM Injector Plugin</h1>
+        <p>Inject Dynatrace RUM script across pages & bypass CSP</p>
+      </div>
+
+      <div class="section collapsed" id="cspSection">
+        <div class="section-header">
+          <div class="section-title">🛡️ CSP Control</div>
+          <div class="section-chevron">▼</div>
+        </div>
+        <div class="section-content">
+          <div class="toggle-wrapper">
+            <div class="toggle active" id="cspToggleSwitch">
+              <input type="checkbox" id="cspToggle" checked style="display: none;">
+            </div>
+            <span class="toggle-label">Block CSP Headers</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="patternSection">
+        <div class="section-header">
+          <div class="section-title">🎯 URL Pattern</div>
+          <div class="section-chevron">▼</div>
+        </div>
+        <div class="section-content">
+          <input id="urlPattern" type="text" placeholder="Enter regex pattern (e.g., .*domain\.com.*)" />
+          <div class="button-group">
+            <button id="currentDomainBtn" class="btn-secondary">📍 Current Domain</button>
+            <button id="allPagesBtn" class="btn-secondary">🌐 All Pages</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="injectionSection">
+        <div class="section-header">
+          <div class="section-title">⚡ Script Injection</div>
+          <div class="section-chevron">▼</div>
+        </div>
+        <div class="section-content">
+          <input id="scriptUrl" type="text" placeholder="https://example.com/script.js" />
+          <div class="button-group">
+            <button id="saveRuleBtn" class="btn-primary">💾 Save Rule</button>
+          </div>
+          <div class="button-group" style="margin-top: 6px;">
+            <button id="clearRulesBtn" class="btn-danger">Clear All Rules</button>
+          </div>
+          <div style="font-size: 11px; color: #718096; margin-top: 6px; font-style: italic;">
+            💡 Rules auto-inject on page refresh/navigation
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="rulesSection">
+        <div class="section-header">
+          <div class="section-title">📋 Active Rules</div>
+          <div class="section-chevron">▼</div>
+        </div>
+        <div class="section-content">
+          <div class="rules-container">
+            <div id="rulesList">
+              <div class="empty-state">No active rules</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
