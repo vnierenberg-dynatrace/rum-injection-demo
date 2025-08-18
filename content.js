@@ -70,4 +70,36 @@
   });
   
   // Background script handles auto-injection now - content script injection is disabled
+  
+  // Listen for user ID updates from injected scripts
+  window.addEventListener('message', (event) => {
+    // Only accept messages from the same origin
+    if (event.source !== window) return;
+    
+    // Check if this is a user ID update message
+    if (event.data && event.data.type === 'DYNATRACE_USER_ID_UPDATE') {
+      console.log('Content script received user ID update:', event.data.userId);
+      
+      // Relay to background script
+      chrome.runtime.sendMessage({
+        action: 'updateUserId',
+        userId: event.data.userId
+      }).catch(error => {
+        console.warn('Failed to send user ID update to background:', error);
+      });
+    }
+    
+    // Check if this is a RUM injection success message
+    if (event.data && event.data.type === 'DYNATRACE_RUM_INJECTED' && event.data.success) {
+      console.log('Content script received RUM injection success');
+      
+      // Relay to background script
+      chrome.runtime.sendMessage({
+        action: 'rumInjected',
+        success: true
+      }).catch(error => {
+        console.warn('Failed to send RUM injection status to background:', error);
+      });
+    }
+  });
 })();
