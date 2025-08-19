@@ -9,12 +9,17 @@ const currentDomainBtn = document.getElementById("currentDomainBtn");
 const allPagesBtn = document.getElementById("allPagesBtn");
 const rulesList = document.getElementById("rulesList");
 const status = document.getElementById("status");
+const sprintTenant = document.getElementById("sprintTenant");
+const findSessionBtn = document.getElementById("findSessionBtn");
+const identifyUserInput = document.getElementById("identifyUserInput");
+const identifyUserBtn = document.getElementById("identifyUserBtn");
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await loadRules();
   await displayRules();
+  await checkRumInjectionStatus();
   initializeCollapsibleSections();
   initializeInfoTooltip();
   initializeEventDelegation();
@@ -93,12 +98,14 @@ function showStatus(message, isError = false) {
 // Load settings from storage
 async function loadSettings() {
   try {
-    const result = await chrome.storage.sync.get(['cspEnabled', 'urlPattern', 'scriptUrl']);
+    const result = await chrome.storage.sync.get(['cspEnabled', 'urlPattern', 'scriptUrl', 'sprintTenant', 'identifyUserValue']);
     const isEnabled = result.cspEnabled !== false;
     cspToggle.checked = isEnabled;
     cspToggleSwitch.classList.toggle('active', isEnabled);
     urlPattern.value = result.urlPattern || '';
     scriptUrl.value = result.scriptUrl || '';
+    sprintTenant.value = result.sprintTenant || '';
+    identifyUserInput.value = result.identifyUserValue || '';
   } catch (error) {
     console.error('Failed to load settings:', error);
   }
@@ -110,7 +117,9 @@ async function saveSettings() {
     await chrome.storage.sync.set({
       cspEnabled: cspToggle.checked,
       urlPattern: urlPattern.value,
-      scriptUrl: scriptUrl.value
+      scriptUrl: scriptUrl.value,
+      sprintTenant: sprintTenant.value,
+      identifyUserValue: identifyUserInput.value
     });
   } catch (error) {
     console.error('Failed to save settings:', error);
@@ -152,6 +161,31 @@ async function displayRules() {
       <button data-rule-index="${index}" class="rule-remove">Remove</button>
     </div>
   `).join('');
+}
+
+// Check RUM injection status and enable/disable sections
+async function checkRumInjectionStatus() {
+  try {
+    const result = await chrome.storage.sync.get(['rumInjected']);
+    const isInjected = result.rumInjected === true;
+    
+    const identifyUserSection = document.getElementById('identifyUserSection');
+    const sessionSection = document.getElementById('sessionSection');
+    
+    if (isInjected) {
+      // Enable sections
+      identifyUserSection.classList.remove('disabled');
+      sessionSection.classList.remove('disabled');
+      console.log('RUM sections enabled');
+    } else {
+      // Keep sections disabled
+      identifyUserSection.classList.add('disabled');
+      sessionSection.classList.add('disabled');
+      console.log('RUM sections disabled - waiting for injection');
+    }
+  } catch (error) {
+    console.error('Failed to check RUM injection status:', error);
+  }
 }
 
 // Remove rule function
@@ -245,9 +279,102 @@ saveRuleBtn.addEventListener("click", async () => {
 clearRulesBtn.addEventListener("click", async () => {
   await saveRules([]);
   await displayRules();
+  // Reset injection status when rules are cleared
+  await chrome.storage.sync.set({ rumInjected: false });
+  await checkRumInjectionStatus();
   showStatus("All rules cleared");
+});
+
+// Find My Session functionality
+findSessionBtn.addEventListener("click", async () => {
+  const tenant = sprintTenant.value.trim();
+  
+  if (!tenant) {
+    showStatus("Please enter a sprint tenant name", true);
+    return;
+  }
+  
+  try {
+    // Get the stored user ID
+    const { userId } = await chrome.storage.sync.get(['userId']);
+    
+    if (!userId) {
+      showStatus("No user ID found. Please inject RUM script first.", true);
+      return;
+    }
+    
+    // Construct the URL
+    const sessionUrl = `https://${tenant}.sprint.apps.dynatracelabs.com/ui/apps/dynatrace.classic.session.segmentation/ui/user-sessions?filter=userId:${userId}`;
+    
+    // Open in new tab
+    chrome.tabs.create({ url: sessionUrl });
+    
+    showStatus("Session search opened in new tab");
+    await saveSettings();
+  } catch (error) {
+    console.error('Failed to find session:', error);
+    showStatus("Failed to open session search", true);
+  }
+});
+
+// Identify User functionality - call dtrum.identifyUser when button is clicked
+identifyUserBtn.addEventListener("click", async () => {
+  const userId = identifyUserInput.value.trim();
+  
+  if (!userId) {
+    showStatus("Please enter a user ID", true);
+    return;
+  }
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      showStatus("No active tab found", true);
+      return;
+    }
+    
+    // Inject script to call dtrum.identifyUser on the active tab
+    const result = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      func: (userIdValue) => {
+        try {
+          if (window.dtrum && typeof window.dtrum.identifyUser === 'function') {
+            window.dtrum.identifyUser(userIdValue);
+            console.log('dtrum.identifyUser called with:', userIdValue);
+            return 'success';
+          } else {
+            console.warn('dtrum.identifyUser not available');
+            return 'dtrum_not_available';
+          }
+        } catch (error) {
+          console.error('Failed to call dtrum.identifyUser:', error);
+          return 'error';
+        }
+      },
+      args: [userId]
+    });
+    
+    const scriptResult = result?.[0]?.result;
+    if (scriptResult === 'success') {
+      showStatus(`User identified: ${userId}`);
+      await saveSettings();
+    } else if (scriptResult === 'dtrum_not_available') {
+      showStatus("dtrum not available on this page", true);
+    } else {
+      showStatus("Failed to identify user", true);
+    }
+    
+    console.log('Called dtrum.identifyUser with:', userId);
+  } catch (error) {
+    console.error('Failed to call dtrum.identifyUser:', error);
+    showStatus("Failed to identify user", true);
+  }
 });
 
 // Auto-save inputs
 urlPattern.addEventListener("input", saveSettings);
 scriptUrl.addEventListener("input", saveSettings);
+sprintTenant.addEventListener("input", saveSettings);
+identifyUserInput.addEventListener("input", saveSettings);

@@ -1,6 +1,27 @@
 // CSP blocking functionality
 let cspBlockingEnabled = true;
 
+// Generate and store random user ID for dtrum.identifyUser
+async function getOrCreateUserId() {
+  try {
+    const { userId } = await chrome.storage.sync.get(['userId']);
+    if (userId) {
+      return userId;
+    }
+    
+    // Generate new 10-digit random number
+    const randomId = Math.floor(Math.random() * 9000000000) + 1000000000;
+    const newUserId = `dynatrace-${randomId}`;
+    await chrome.storage.sync.set({ userId: newUserId });
+    console.log('Generated new user ID:', newUserId);
+    return newUserId;
+  } catch (error) {
+    console.error('Failed to get/create user ID:', error);
+    // Fallback to session-only ID
+    return `dynatrace-${Math.floor(Math.random() * 9000000000) + 1000000000}`;
+  }
+}
+
 // Use declarativeNetRequest for MV3 CSP blocking
 async function updateCSPBlocking(enabled) {
   try {
@@ -63,11 +84,14 @@ async function injectScript(tabId, scriptUrl) {
     const scriptContent = await response.text();
     if (!scriptContent?.trim()) throw new Error('Script content is empty');
     
+    // Get user ID for dtrum.identifyUser
+    const userId = await getOrCreateUserId();
+    
     // Primary injection method: chrome.scripting with MAIN world
     const result = await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
-      func: (content, url) => {
+      func: (content, url, userIdValue) => {
         // Prevent duplicate injections
         if (window.__injectedScripts?.[url]) return 'exists';
         if (!window.__injectedScripts) window.__injectedScripts = {};
@@ -80,6 +104,89 @@ async function injectScript(tabId, scriptUrl) {
           script.setAttribute('data-injected-from', url);
           (document.head || document.documentElement || document.body).appendChild(script);
           console.log('Script injected via DOM element:', url);
+          
+          // After RUM script injection, identify the user and set up monitoring
+          setTimeout(() => {
+            try {
+              if (window.dtrum && typeof window.dtrum.identifyUser === 'function') {
+                // Store the original identifyUser function
+                const originalIdentifyUser = window.dtrum.identifyUser;
+                
+                // Wrap the function to capture future calls
+                window.dtrum.identifyUser = function(userId) {
+                  console.log('dtrum.identifyUser called with:', userId);
+                  
+                  // Call the original function
+                  const result = originalIdentifyUser.call(this, userId);
+                  
+                  // Update stored user ID via postMessage to content script
+                  try {
+                    window.postMessage({
+                      type: 'DYNATRACE_USER_ID_UPDATE',
+                      userId: userId
+                    }, '*');
+                  } catch (e) {
+                    console.warn('Failed to update stored user ID:', e);
+                  }
+                  
+                  return result;
+                };
+                
+                // Make the initial call with our generated ID
+                window.dtrum.identifyUser(userIdValue);
+                console.log('User identified with dtrum.identifyUser:', userIdValue);
+                
+                // Signal successful injection
+                window.postMessage({
+                  type: 'DYNATRACE_RUM_INJECTED',
+                  success: true
+                }, '*');
+              } else {
+                console.warn('dtrum.identifyUser not available yet, retrying...');
+                // Retry after a short delay
+                setTimeout(() => {
+                  if (window.dtrum && typeof window.dtrum.identifyUser === 'function') {
+                    // Store the original identifyUser function
+                    const originalIdentifyUser = window.dtrum.identifyUser;
+                    
+                    // Wrap the function to capture future calls
+                    window.dtrum.identifyUser = function(userId) {
+                      console.log('dtrum.identifyUser called with:', userId);
+                      
+                      // Call the original function
+                      const result = originalIdentifyUser.call(this, userId);
+                      
+                      // Update stored user ID in extension storage
+                      try {
+                        chrome.runtime.sendMessage({
+                          action: 'updateUserId',
+                          userId: userId
+                        });
+                      } catch (e) {
+                        console.warn('Failed to update stored user ID:', e);
+                      }
+                      
+                      return result;
+                    };
+                    
+                    window.dtrum.identifyUser(userIdValue);
+                    console.log('User identified with dtrum.identifyUser (retry):', userIdValue);
+                    
+                    // Signal successful injection
+                    window.postMessage({
+                      type: 'DYNATRACE_RUM_INJECTED',
+                      success: true
+                    }, '*');
+                  } else {
+                    console.error('dtrum.identifyUser still not available after retry');
+                  }
+                }, 1000);
+              }
+            } catch (identifyError) {
+              console.error('Failed to identify user:', identifyError);
+            }
+          }, 500);
+          
           return 'success_dom';
         } catch (domError) {
           console.warn('DOM injection failed, trying Function constructor:', domError);
@@ -88,12 +195,90 @@ async function injectScript(tabId, scriptUrl) {
           try {
             new Function(content).call(window);
             console.log('Script injected via Function constructor:', url);
+            
+            // After RUM script injection, identify the user and set up monitoring
+            setTimeout(() => {
+              try {
+                if (window.dtrum && typeof window.dtrum.identifyUser === 'function') {
+                  // Store the original identifyUser function
+                  const originalIdentifyUser = window.dtrum.identifyUser;
+                  
+                  // Wrap the function to capture future calls
+                  window.dtrum.identifyUser = function(userId) {
+                    console.log('dtrum.identifyUser called with:', userId);
+                    
+                    // Call the original function
+                    const result = originalIdentifyUser.call(this, userId);
+                    
+                    // Update stored user ID via postMessage to content script
+                    try {
+                      window.postMessage({
+                        type: 'DYNATRACE_USER_ID_UPDATE',
+                        userId: userId
+                      }, '*');
+                    } catch (e) {
+                      console.warn('Failed to update stored user ID:', e);
+                    }
+                    
+                    return result;
+                  };
+                  
+                  window.dtrum.identifyUser(userIdValue);
+                  console.log('User identified with dtrum.identifyUser:', userIdValue);
+                  
+                  // Signal successful injection
+                  window.postMessage({
+                    type: 'DYNATRACE_RUM_INJECTED',
+                    success: true
+                  }, '*');
+                }
+              } catch (identifyError) {
+                console.error('Failed to identify user:', identifyError);
+              }
+            }, 500);
+            
             return 'success_function';
           } catch (funcError) {
             // Method 3: setTimeout fallback
             try {
               setTimeout(new Function(content), 0);
               console.log('Script injected via setTimeout:', url);
+              
+              // After RUM script injection, identify the user and set up monitoring
+              setTimeout(() => {
+                try {
+                  if (window.dtrum && typeof window.dtrum.identifyUser === 'function') {
+                    // Store the original identifyUser function
+                    const originalIdentifyUser = window.dtrum.identifyUser;
+                    
+                    // Wrap the function to capture future calls
+                    window.dtrum.identifyUser = function(userId) {
+                      console.log('dtrum.identifyUser called with:', userId);
+                      
+                      // Call the original function
+                      const result = originalIdentifyUser.call(this, userId);
+                      
+                      // Update stored user ID in extension storage
+                      try {
+                        chrome.runtime.sendMessage({
+                          action: 'updateUserId',
+                          userId: userId
+                        });
+                      } catch (e) {
+                        console.warn('Failed to update stored user ID:', e);
+                      }
+                      
+                      return result;
+                    };
+                    
+                    window.dtrum.identifyUser(userIdValue);
+                    console.log('User identified with dtrum.identifyUser:', userIdValue);
+                  }
+                } catch (identifyError) {
+                  console.error('Failed to identify user:', identifyError);
+                }
+              }, 1000);
+              
               return 'success_delayed';
             } catch (timeoutError) {
               console.error('All injection methods failed:', domError, funcError, timeoutError);
@@ -102,7 +287,7 @@ async function injectScript(tabId, scriptUrl) {
           }
         }
       },
-      args: [scriptContent, scriptUrl]
+      args: [scriptContent, scriptUrl, userId]
     });
     
     return { success: true, result };
@@ -134,8 +319,9 @@ async function autoInjectScripts(tabId, url) {
 
 // Tab event listeners - inject earlier for session replay
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Try multiple injection points to ensure session replay works
+  // Reset injection status on new page load
   if (changeInfo.status === 'loading' && tab.url) {
+    chrome.storage.sync.set({ rumInjected: false });
     // Very early injection for session replay
     setTimeout(() => autoInjectScripts(tabId, tab.url), 100);
   } else if (changeInfo.status === 'interactive' && tab.url) {
@@ -166,6 +352,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     cspBlockingEnabled = message.enabled;
     updateCSPBlocking(cspBlockingEnabled);
     chrome.storage.sync.set({ cspEnabled: cspBlockingEnabled });
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === "updateUserId") {
+    // Update stored user ID when dtrum.identifyUser is called
+    chrome.storage.sync.set({ userId: message.userId });
+    console.log('Updated stored user ID:', message.userId);
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === "rumInjected") {
+    // Track RUM injection status
+    chrome.storage.sync.set({ rumInjected: true });
+    console.log('RUM injection successful, enabling user sections');
     sendResponse({ success: true });
     return true;
   }
